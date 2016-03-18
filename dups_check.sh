@@ -37,11 +37,10 @@ err() {
 
 TIMEDOUT_EXITSTATUS=124
 
-check_sample() {
+run_sample() {
     local sample_no=$1
     local cpu_limit=$2
 
-    log_info "Launching sample$sample_no"
     timeout ${cpu_limit}m bash ./run.sh /samples/sample${sample_no}/*.gz >/tmp/result${sample_no}.txt
 
     ec=$?
@@ -53,9 +52,29 @@ check_sample() {
         return 1
     fi
 
+    return 0
+}
+
+LAST_MARK=0
+
+check_sample() {
+    local sample_no=$1
+    local cpu_limit=$2
+    local mark=$3
+
+    log_empty
+    log_info "Launching sample${sample_no}"
+
+    run_sample $sample_no $cpu_limit
+    if [[ $? -ne 0 ]]; then
+        echo "Your final result: ${LAST_MARK}. Try again..."
+        exit 1
+    fi
+
     # TODO: actually check the result
 
-    log_info SUCCESS
+    LAST_MARK=$mark
+    log_info "SUCCESS: You got $LAST_MARK mark at least..."
     return 0
 }
 
@@ -63,6 +82,15 @@ check_sample() {
 ###############################################################################
 ## MAIN
 ###############################################################################
+
+log_empty
+
+log_info "$( uname -sm ): $( lsb_release -i -s ) $( lsb_release -s -r ) ($( lsb_release -c -s ))"
+mem_limit=$[ $( grep hierarchical_memory_limit /sys/fs/cgroup/memory/memory.stat | awk '{ print $2 }' ) / 2**20 ]
+log_info "RAM limit: $mem_limit Mb"
+
+log_empty
+log_info "Starting to check homework #2"
 
 LOCATION=$( find . -name run.sh | head -n 1 )
 if [[ -z $LOCATION ]]; then
@@ -78,8 +106,10 @@ else
     log_info "preinstall.sh not found, skipping"
 fi
 
-check_sample 1 10
-check_sample 2 10
-check_sample 3 15
+check_sample 1 10 5
+check_sample 2 10 10
+check_sample 3 15 15
 
-log_info "FINISHED"
+
+log_info "Your final result: ${LAST_MARK}. Congratulations!"
+log_info "SUCCESSFULLY FINISHED! !"

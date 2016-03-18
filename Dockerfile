@@ -7,5 +7,5 @@ COPY dups_check.sh /tmp/
 RUN apt-get update && apt-get upgrade --yes
 RUN apt-get install --yes python2.7
 
-RUN apt-get install --yes python-pip python-dev build-essential protobuf-compiler python-html2text
-RUN easy_install pip && pip install --upgrade pip && pip install --upgrade mmh3 html2text protobuf
+RUN apt-get install --yes python-pip python-dev build-essential protobuf-compiler python-html2text python-numpy
+RUN easy_install pip && pip install --upgrade pip && pip install --upgrade mmh3 protobuf
