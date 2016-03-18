@@ -1,0 +1,234 @@
+#!/usr/bin/perl -w
+use strict;
+
+# $Id$ 
+# Run some utility with timeout, then kill it
+# Then
+
+use Getopt::Long qw( :config no_ignore_case gnu_compat bundling );;
+use Pod::Usage;
+use POSIX qw(setsid :sys_wait_h);
+use Config;
+use strict;
+
+use constant TIMEDOUT_EXITSTATUS => 124;
+
+my $background = 0;
+my $killby9 = 0;
+my $help = 0;
+my $man = 0;
+my $version = 0;
+my $bequiet = 0;
+my $signame = "TERM";
+my $childpid = -1;
+my $childgone = 0;
+my $child_exitstatus;
+
+sub ChildReaper
+{
+  my $r = waitpid($childpid, WNOHANG);
+
+  my ($rc, $sig) = ($? >> 8, $? & 127);
+
+  $child_exitstatus = $rc;
+  $child_exitstatus += 128 + $sig if ($sig);
+
+  print "Exited with $child_exitstatus\n";
+  $childgone = 1;
+  $SIG{CHLD} = \&ChildReaper; # still loathe SysV
+}
+
+sub KillChild
+{
+  my $signame = shift;
+
+  if ($childpid != -1) {
+    kill $signame => $childpid;
+    $childpid = -1;
+  }
+
+  # raise the signal again
+  $SIG{$signame} = 'DEFAULT';
+  kill $signame => $$;
+}
+
+sub ConvertTimeout
+{
+  my %multipliers = ( 's' => 1, 'm' => 60, 'h' => 60*60, 'd' => 24*60*60 );
+  if ($_[0] =~ /^(\d+)([smhd])?$/) {
+    return (defined $2) ? int($1) * $multipliers{$2} : int($1);
+  }
+  return -1;
+}
+
+sub GetSignalByName
+{
+  my $signame = uc($_[0]);
+
+  if ($signame =~ /^\d+$/) {
+    return int($signame);
+  }
+  else 
+  {
+    $signame =~ s/^SIG//;
+    defined $Config{sig_name} || die "No sigs?";
+
+    my $i = 0;
+    foreach my $name (split(' ', $Config{sig_name})) 
+    {
+      if (uc($name) eq $signame) {
+        return $i;
+      }
+      $i++;
+    }
+
+    return -1;
+  }
+}
+
+sub CloseFDesc
+{
+  close STDIN;
+  open STDIN, '<', '/dev/null';
+  close STDOUT;
+  open STDOUT, '>', '/dev/null';
+  close STDERR;
+  open STDERR, '>', '/dev/null';
+}
+
+sub IgnoreSignals
+{
+  for my $signal ('HUP', 'TTIN', 'USR1', 'USR2', 'PIPE', 'TTOU') {
+    $SIG{$signal} = 'IGNORE';
+  }
+}
+
+sub Daemonize
+{
+  defined(my $pid = fork) or die "Can't fork: $!";
+  exit if $pid;
+  setsid or die "Can't start a new session: $!";
+  CloseFDesc();
+  IgnoreSignals;()
+}
+
+# Note what we should handle this case: [options] COMMAND ARGS <--
+GetOptions("signal=s" => \$signame,
+  "ensure" => \$killby9,
+  "help|h" => \$help,
+  "version|v" => \$version,
+  "quiet|q" => \$bequiet,
+  "man" => \$man,
+  "background|b" => \$background) or pod2usage(1);
+
+pod2usage(1) if ($help);
+pod2usage(-verbose => 2) if ($man);
+
+if ($version) {
+  printf("Version: %s\n", '$Id$');
+  exit 0;
+}
+
+pod2usage(1) if (scalar(@ARGV) < 2);
+my $timeout = ConvertTimeout($ARGV[0]);
+pod2usage(-msg => "invalid timeout: $ARGV[0]", -exitval => 1) if ($timeout == -1);
+my $signal = GetSignalByName($signame);
+pod2usage(-msg => "invalid signal specification: $signame", -exitval => 1) if ($signal == -1);
+
+Daemonize() if ($background);
+$SIG{CHLD} = \&ChildReaper;
+IgnoreSignals();
+
+# we should pass signal to child too
+for my $signal ('INT', 'QUIT', 'TERM', 'XCPU') {
+  $SIG{$signal} = \&KillChild;
+}
+
+if ( !defined($childpid = fork()) ) {
+  die "Can't fork: $!";
+}
+elsif ($childpid == 0) {
+  CloseFDesc() if $bequiet;
+  shift @ARGV;
+  my $command = $ARGV[0];
+  if (exec { $command } @ARGV) {
+    die "Command $command not found";
+  }
+}
+else {
+  # using sleep() is stupid here ... but quite easy
+  sleep $timeout;
+  if ($childgone) {
+    exit ($child_exitstatus);
+  }
+
+  kill $signal => $childpid;
+  if ($killby9)
+  {
+    sleep(1);
+
+    if (!$childgone) {
+      kill 9 => $childpid;
+    }
+  }
+
+  exit( TIMEDOUT_EXITSTATUS );
+}
+
+__END__
+
+=head1 timeout
+
+Start  COMMAND, and kill it if still running after NUMBER seconds.  SUFFIX may be B<s> for seconds (the default), B<m> for minutes, B<h>
+       for hours or B<d> for days.
+
+=head1 SYNOPSIS
+
+timeout [OPTION] NUMBER[SUFFIX] COMMAND [ARG]...
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h, --help>
+
+Print a brief help message and exits.
+
+=item B<-v, --version>
+
+output version information and exit.
+
+
+=item B<-s, --signal>=SIGNAL
+
+specify the signal to be sent on timeout.  SIGNAL may be a name like `HUP` or a number.  See B<kill -l> for a list of signals
+
+=item B<-b, --background>
+
+run COMMAND in background
+
+=item B<-q, --quiet>
+
+run COMMAND quiet mode: reopen all input & output as /dev/null
+
+
+=item B<--ensure>
+
+Ensure that command killed. Otherwise, try B<kill -9> after 1 second.
+
+
+=back
+
+=head1 DESCRIPTION
+
+If the command times out, then exit with status 124.  Otherwise, exit with the status of COMMAND.  If no signal is specified, send the
+TERM signal upon timeout.  The TERM signal kills any process that does not block or catch that signal.  For other processes, it may be
+necessary to use the KILL (9) signal, since this signal cannot be caught.
+
+=head1 SEE ALSO
+
+=over 1
+
+=item kill(1)
+
+=cut
