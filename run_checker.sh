@@ -10,6 +10,7 @@ if [[ $# -ne 1 ]]; then
     exit 64
 fi
 
+
 archive=$( readlink -f $1 )
 archive_dst=/tmp/$( basename $archive )
 
@@ -18,9 +19,9 @@ UTILS_DIR=$( readlink -f $( dirname $0 ))/utils
 
 CHECK_DATA=$HOME/Cloud/lects/hidden/ts-duplicates
 
-docker run -m 2g -a stdout \
+docker run --rm -m 2g -a stdout -a stderr \
     -v "$CHECK_DATA/samples:/samples:ro" \
     -v "$CHECK_DATA/answers:/answers:ro" \
     -v "$UTILS_DIR:/utils:ro" \
     -v "$archive:$archive_dst:ro" \
-    dkrot/ubuntu-ts /utils/dups_check.sh "$archive_dst"
+    dkrot/ubuntu-ts /utils/dups_check.sh "$archive_dst" 2>&1
