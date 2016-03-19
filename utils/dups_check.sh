@@ -102,8 +102,8 @@ check_sample() {
     UNION=$( echo $RES | awk '{ print $2 }' )
     F=$[ 100 * $INTERSECTION / $UNION ]
 
-    NL_ANSW=$( wc -l /answers/sample${sample_no} )
-    NL_YOU=$( wc -l $OUTPUT_DIR/result.txt )
+    NL_ANSW=$( cat /answers/sample${sample_no} | wc -l )
+    NL_YOU=$( cat $OUTPUT_DIR/result.txt | wc -l )
 
     log_info "Результат: кол-во пар дубликатов: ваш вариант - $NL_YOU, опорный вариант - $NL_ANSW"
     log_info "Результат: пересечение=$INTERSECTION, объединение=$UNION; F=${F}%"
