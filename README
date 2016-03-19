@@ -1,1 +1,1 @@
-docker run -m 2g -i -v $HOME/Cloud/lects/hidden/ts-duplicates/samples:/samples:ro -v $PWD:/tmp/homework:rw dkrot/ubuntu-ts /tmp/dups_check.sh
+run_checker.sh path/to/package.tgz
