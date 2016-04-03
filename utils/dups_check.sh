@@ -107,7 +107,7 @@ check_sample() {
 
     log_info "Результат: кол-во пар дубликатов: ваш вариант - $NL_YOU, опорный вариант - $NL_ANSW"
     log_info "Результат: пересечение=$INTERSECTION, объединение=$UNION; F=${F}%"
-    if [[ $F -lt 20 ]]; then
+    if [[ $F -lt 90 ]]; then
         log_info "Проблема: F слишком мал, Ваш вывод слишком отличается от опорного"
         print_mark_and_exit
     fi

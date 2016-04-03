@@ -33,7 +33,6 @@ sub ChildReaper
   $child_exitstatus = $rc;
   $child_exitstatus += 128 + $sig if ($sig);
 
-  print "Exited with $child_exitstatus\n";
   $childgone = 1;
   $SIG{CHLD} = \&ChildReaper; # still loathe SysV
 }
