@@ -82,14 +82,14 @@ run_sample() {
     fi
     
     log_info Запускаю ./search.sh
-    timeout 1m bash ./search.sh >$output 2>${output}.err </samples/sample${sample_no}/queries.txt
+    timeout 3s bash ./search.sh >$output 2>${output}.err </samples/sample${sample_no}/queries.txt
 
     ec=$?
     if [[ $ec -eq $TIMEDOUT_EXITSTATUS ]]; then
-        log_err "Время вышло ($cpu_limit минут)"
+        log_err "Время вышло (3 секунды)"
         return 2
     elif [[ $ec -ne 0 ]]; then
-        log_err "Скрипт завершился с ошибкой: $ec (вероятно, недостаточно памяти)"
+        log_err "Скрипт завершился с ошибкой: $ec"
         echo "Содержимое stderr (20 последних строк):"
         tail -n 20 ${output}.err
         return 1
@@ -201,6 +201,6 @@ fi
 
 check_sample 0 varbyte 1 8   # tiny size (~1.5K docs)
 check_sample 1 simple9 1 12  # normal size (10K)
-check_sample 2 simple9 5 15  # big size (100K)
-check_sample 3 varbyte 15 20 # huge size (~600K)
+check_sample 2 simple9 4 15  # big size (100K)
+check_sample 3 varbyte 13 20 # huge size (~600K)
 
