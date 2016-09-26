@@ -199,8 +199,8 @@ else
 fi
 
 
-check_sample 0 varbyte 1 8   # tiny size (~1.5K docs)
-check_sample 1 simple9 1 12  # normal size (10K)
-check_sample 2 simple9 4 15  # big size (100K)
-check_sample 3 varbyte 13 20 # huge size (~600K)
+check_sample 0 varbyte 1 15  # tiny size (~1.5K docs)
+check_sample 1 simple9 1 20  # normal size (10K)
+check_sample 2 simple9 5 25  # big size (100K)
+check_sample 3 varbyte 20 35 # huge size (~600K)
 
